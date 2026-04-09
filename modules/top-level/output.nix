@@ -332,12 +332,11 @@ in
 
         printInitPackage = pkgs.writeShellApplication {
           name = "nixvim-print-init";
-          runtimeInputs = [ pkgs.bat ];
           runtimeEnv = {
             init = config.build.initSource;
           };
           text = ''
-            bat --language=lua "$init"
+            cat "$init"
           '';
         };
 
