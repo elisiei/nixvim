@@ -336,7 +336,7 @@ in
             init = config.build.initSource;
           };
           text = ''
-            cat "$init"
+            nvim "$init"
           '';
         };
 
