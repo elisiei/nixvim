@@ -16,7 +16,7 @@
 */
 {
   lib,
-  flake,
+  flake ? null,
 }:
 lib.makeExtensible (
   self:
@@ -53,14 +53,6 @@ lib.makeExtensible (
     # Top-level helper aliases:
     # TODO: deprecate some aliases
 
-    inherit (self.builders)
-      writeLua
-      writeByteCompiledLua
-      byteCompileLuaFile
-      byteCompileLuaHook
-      byteCompileLuaDrv
-      ;
-
     inherit (self.deprecation)
       getOptionRecursive
       mkDeprecatedSubOptionModule
@@ -92,8 +84,6 @@ lib.makeExtensible (
       mkNullOrStrLuaFnOr'
       mkNullOrStrLuaOr
       mkNullOrStrLuaOr'
-      mkPackageOption
-      mkPluginPackageOption
       mkSettingsOption
       mkUnpackagedOption
       pluginDefaultText

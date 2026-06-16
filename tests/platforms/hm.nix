@@ -14,10 +14,14 @@ self.inputs.home-manager.lib.homeManagerConfiguration {
 
       programs.nixvim = {
         enable = true;
+        imports = [
+          ./module-check-enabled.nix
+        ];
       };
 
       programs.home-manager.enable = true;
     }
     self.homeModules.nixvim
+    ./inf-rec-lib.nix
   ];
 }

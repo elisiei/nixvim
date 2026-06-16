@@ -1,10 +1,11 @@
 {
-  self,
+  nixvimLib,
   extendModules,
 }:
 {
-  config,
   lib,
+  config,
+  options,
   ...
 }:
 let
@@ -18,7 +19,7 @@ in
 
   imports = [
     (import ./_shared.nix {
-      inherit self;
+      inherit nixvimLib;
       inherit
         (extendModules {
           specialArgs.hmConfig = config;
@@ -48,5 +49,12 @@ in
       fish.shellAliases.vimdiff = "nvim -d";
       zsh.shellAliases.vimdiff = "nvim -d";
     };
+
+    assertions = [
+      {
+        assertion = !config.programs.neovim.enable;
+        message = "`${options.programs.nixvim}.enable` and `${options.programs.neovim.enable}` are incompatible.";
+      }
+    ];
   };
 }

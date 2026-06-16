@@ -58,11 +58,12 @@ lib.nixvim.plugins.mkNeovimPlugin {
     Customize which parsers to install:
 
     ```nix
+    { config, ... }:
     {
       plugins.treesitter = {
         enable = true;
 
-        grammarPackages = with pkgs.vimPlugins.nvim-treesitter.builtGrammars; [
+        grammarPackages = with config.plugins.treesitter.package.builtGrammars; [
           bash
           json
           lua
@@ -79,6 +80,13 @@ lib.nixvim.plugins.mkNeovimPlugin {
       };
     }
     ```
+
+    > [!WARNING]
+    > Use `config.plugins.treesitter.package.*` to access the grammars for this module.
+    > In Home Manager or NixOS modules, use `config.programs.nixvim.plugins.treesitter.package.*`.
+    > Do not use `pkgs.vimPlugins.nvim-treesitter.*` unless you are intentionally bypassing
+    > `plugins.treesitter.package`; that can pull in parser packages with incompatible upstream
+    > query files instead of the queries bundled by the configured nvim-treesitter package.
 
     Verify installed parsers with `:checkhealth vim.treesitter`.
 
@@ -103,7 +111,7 @@ lib.nixvim.plugins.mkNeovimPlugin {
     Build and install your own grammar:
 
     ```nix
-    { pkgs, ... }:
+    { config, pkgs, ... }:
     let
       treesitter-nu-grammar = pkgs.tree-sitter.buildGrammar {
         language = "nu";
@@ -120,7 +128,7 @@ lib.nixvim.plugins.mkNeovimPlugin {
     {
       programs.nixvim.plugins.treesitter = {
         enable = true;
-        grammarPackages = pkgs.vimPlugins.nvim-treesitter.allGrammars ++ [ treesitter-nu-grammar ];
+        grammarPackages = config.programs.nixvim.plugins.treesitter.package.allGrammars ++ [ treesitter-nu-grammar ];
 
         # Register the parser to filetype
         languageRegister.nu = "nu";
@@ -179,6 +187,23 @@ lib.nixvim.plugins.mkNeovimPlugin {
 
     highlight = {
       enable = lib.mkEnableOption "tree-sitter based syntax highlighting";
+
+      disable = mkOption {
+        type = with types; listOf str;
+        default = [ ];
+        example = [
+          "latex"
+          "html"
+        ];
+        description = ''
+          List of languages or filetypes for which tree-sitter based syntax highlighting should not
+          be started by Nixvim.
+
+          This option only applies to Nixvim's native tree-sitter highlighting setup for the modern
+          nvim-treesitter main branch. Legacy nvim-treesitter configuration should continue using
+          upstream settings under `plugins.treesitter.settings`.
+        '';
+      };
     };
 
     indent = {
@@ -188,9 +213,16 @@ lib.nixvim.plugins.mkNeovimPlugin {
     grammarPackages = mkOption {
       type = with types; listOf package;
       default = config.plugins.treesitter.package.allGrammars;
-      example = literalExpression "pkgs.vimPlugins.nvim-treesitter.allGrammars";
+      example = literalExpression "config.plugins.treesitter.package.allGrammars";
       defaultText = literalExpression "config.plugins.treesitter.package.allGrammars";
-      description = "Grammar packages to install";
+      description = ''
+        Grammar packages to install.
+
+        Use `config.plugins.treesitter.package.*` to access the grammars for the configured
+        nvim-treesitter package. Avoid `pkgs.vimPlugins.nvim-treesitter.*` here unless you are
+        intentionally bypassing `plugins.treesitter.package`, because that can pull in parser
+        packages with incompatible upstream query files.
+      '';
     };
 
     # TODO: Implement rawLua support to be passed into extraConfigLua.
@@ -279,14 +311,31 @@ lib.nixvim.plugins.mkNeovimPlugin {
           ''}
           ${optionalString (highlightEnabled || indentEnabled) ''
             -- Enable features via autocommands for modern nvim-treesitter
+            ${optionalString highlightEnabled ''
+              local disabled_highlight = ${lib.nixvim.toLuaObject cfg.highlight.disable}
+            ''}
+
             vim.api.nvim_create_autocmd('FileType', {
               group = augroup,
               pattern = '*',
-              callback = function()
+              callback = function(args)
                 ${optionalString highlightEnabled ''
-                  pcall(vim.treesitter.start)
+                  local filetype = vim.bo[args.buf].filetype
+                  local lang = vim.treesitter.language.get_lang(filetype) or filetype
+                  local start_highlight = true
+
+                  for _, disabled in ipairs(disabled_highlight) do
+                    if disabled == lang or disabled == filetype then
+                      start_highlight = false
+                      break
+                    end
+                  end
+
+                  if start_highlight then
+                    pcall(vim.treesitter.start, args.buf, lang)
+                  end
                 ''}${optionalString indentEnabled ''
-                  vim.bo.indentexpr = "v:lua.require'nvim-treesitter'.indentexpr()"
+                  vim.bo[args.buf].indentexpr = "v:lua.require'nvim-treesitter'.indentexpr()"
                 ''}
               end,
             })
@@ -328,7 +377,19 @@ lib.nixvim.plugins.mkNeovimPlugin {
     };
 
     warnings = lib.nixvim.mkWarnings "plugins.treesitter" (
-      lib.map (packageName: {
+      [
+        {
+          when =
+            (cfg.settings.highlight.disable or null) != null
+            && !(lib.hasInfix "nvim-treesitter-legacy" (lib.getName cfg.package));
+          message = ''
+            `plugins.treesitter.settings.highlight.disable` is an upstream legacy nvim-treesitter
+            option. For Nixvim's native highlighting support with the modern nvim-treesitter main
+            branch, use `${opt.highlight.disable}` instead.
+          '';
+        }
+      ]
+      ++ lib.map (packageName: {
         when = !cfg.nixGrammars && !config.dependencies.${packageName}.enable;
         message = ''
           `${packageName}` is required to build grammars as you are not using `${opt.nixGrammars}`.

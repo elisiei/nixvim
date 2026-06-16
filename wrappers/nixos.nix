@@ -1,10 +1,11 @@
 {
-  self,
+  nixvimLib,
   extendModules,
 }:
 {
-  config,
   lib,
+  config,
+  options,
   ...
 }:
 let
@@ -18,7 +19,7 @@ in
 
   imports = [
     (import ./_shared.nix {
-      inherit self;
+      inherit nixvimLib;
       inherit
         (extendModules {
           specialArgs.nixosConfig = config;
@@ -46,5 +47,12 @@ in
     };
 
     programs.neovim.defaultEditor = cfg.defaultEditor;
+
+    assertions = [
+      {
+        assertion = !config.programs.neovim.enable;
+        message = "`${options.programs.nixvim}.enable` and `${options.programs.neovim.enable}` are incompatible.";
+      }
+    ];
   };
 }

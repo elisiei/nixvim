@@ -1,6 +1,6 @@
 {
-  # The nixvim flake
-  self,
+  # A `lib.nixvim` instance
+  nixvimLib,
   # Function used to evaluate the `programs.nixvim` configuration
   extendModules,
   # Option path where extraFiles should go
@@ -15,6 +15,7 @@
   pkgs,
   lib,
   config,
+  options,
   ...
 }:
 let
@@ -24,7 +25,12 @@ let
     optionalAttrs
     setAttrByPath
     ;
+
   cfg = config.programs.nixvim;
+  opts = finalConfiguration.options;
+
+  flake = lib.optionalAttrs opts.flake.isDefined cfg.flake;
+  libOverlay = flake.lib.overlay or (import ../lib/overlay.nix);
 
   # FIXME: buildPlatform can't use mkOptionDefault because it already defaults to hostPlatform
   buildPlatformPrio = (lib.mkOptionDefault null).priority - 1;
@@ -37,18 +43,24 @@ let
         # Use global packages in nixvim's submodule
         pkgs = lib.mkIf config.nixpkgs.useGlobalPackages (lib.mkDefault pkgs);
 
-        # Inherit platforms
-        hostPlatform = lib.mkOptionDefault pkgs.stdenv.hostPlatform.system;
-        buildPlatform = lib.mkOverride buildPlatformPrio pkgs.stdenv.buildPlatform.system;
+        # Inherit platform spec
+        hostPlatform = lib.mkOptionDefault pkgs.stdenv.hostPlatform;
+        buildPlatform = lib.mkOverride buildPlatformPrio pkgs.stdenv.buildPlatform;
       };
     };
 
-  nixvimConfiguration = extendModules {
+  baseConfiguration = extendModules {
     modules = [
       nixpkgsModule
-      { disabledModules = [ "<internal:nixvim-nocheck-base-eval>" ]; }
+      { disabledModules = [ { key = "<internal:nixvim-nocheck-base-eval>"; } ]; }
     ];
   };
+
+  finalConfiguration =
+    options.programs.nixvim.valueMeta.configuration or (throw
+      # v2 check+merge was added 2025-08-28, halfway through the 25.11 cycle
+      "`${options.programs.nixvim}` was evaluated using Nixpkgs lib ${lib.trivial.release}, which does not support `valueMeta` added in Nixpkgs 25.11."
+    );
 
   extraFiles = lib.filter (file: file.enable) (lib.attrValues cfg.extraFiles);
 in
@@ -56,14 +68,9 @@ in
   _file = ./_shared.nix;
 
   options.programs.nixvim = lib.mkOption {
-    inherit (nixvimConfiguration) type;
+    inherit (baseConfiguration) type;
     default = { };
   };
-
-  # TODO: Added 2024-07-24; remove after 24.11
-  imports = [
-    (lib.mkRenamedOptionModule [ "nixvim" "helpers" ] [ "lib" "nixvim" ])
-  ];
 
   config = mkMerge [
     {
@@ -76,8 +83,8 @@ in
       # NOTE: It is important that we use the flake-locked Nixpkgs lib,
       # so that we can safely use recently added lib features.
       # TODO: Consider deprecating `_module.args.nixvimLib`?
-      lib.nixvim = lib.mkDefault self.lib.nixvim;
-      _module.args.nixvimLib = lib.mkDefault (lib.extend self.lib.overlay);
+      lib.nixvim = lib.mkDefault nixvimLib;
+      _module.args.nixvimLib = lib.mkDefault (lib.extend libOverlay);
     }
 
     # Propagate nixvim's assertions to the host modules

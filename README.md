@@ -91,7 +91,7 @@ If you have any question, please use the [discussions page](https://github.com/n
 > Nixvim needs to be installed with a compatible nixpkgs version.
 > This means that the `main` branch of Nixvim requires to be installed with `nixpkgs-unstable`.
 >
-> If you want to use Nixvim with nixpkgs 25.11 you should use the `nixos-25.11` branch.
+> If you want to use Nixvim with nixpkgs 26.05 you should use the `nixos-26.05` branch.
 
 For more detail, see the [Installation](https://nix-community.github.io/nixvim) section of our documentation.
 
@@ -108,7 +108,7 @@ let
   nixvim = import (builtins.fetchGit {
     url = "https://github.com/nix-community/nixvim";
     # If you are not running an unstable channel of nixpkgs, select the corresponding branch of Nixvim.
-    # ref = "nixos-25.11";
+    # ref = "nixos-26.05";
   });
 in
 {
@@ -151,7 +151,7 @@ flakes, just add the `nixvim` input:
   inputs.nixvim = {
     url = "github:nix-community/nixvim";
     # If you are not running an unstable channel of nixpkgs, select the corresponding branch of Nixvim.
-    # url = "github:nix-community/nixvim/nixos-25.11";
+    # url = "github:nix-community/nixvim/nixos-26.05";
 
     inputs.nixpkgs.follows = "nixpkgs";
   };
@@ -175,26 +175,36 @@ For more detail, see the [Usage](https://nix-community.github.io/nixvim/user-gui
 
 ### Standalone Usage
 
-If you want to use it standalone, you can use the `makeNixvim` function:
+Nixvim can also be used separately from NixOS, Home Manager, etc.
+To use Nixvim standalone, evaluate a Nixvim configuration and use its package output:
 
 ```nix
-{ pkgs, nixvim, ... }: {
-  environment.systemPackages = [
-    (nixvim.legacyPackages."${pkgs.stdenv.hostPlatform.system}".makeNixvim {
-      colorschemes.gruvbox.enable = true;
-    })
-  ];
-}
+let
+  nixvim = import (builtins.fetchTarball {
+    # ...
+  });
+  configuration = nixvim.lib.evalNixvim {
+    system = builtins.currentSystem;
+
+    modules = [
+      {
+        colorschemes.gruvbox.enable = true;
+      }
+    ];
+  };
+in
+configuration.config.build.package
 ```
+
+The configuration also exposes a test derivation through `configuration.config.build.test`, which can be used from `checks`.
 
 To get started with a standalone configuration, you can use the template by running the following command in an empty directory (recommended):
 
-```
+```console
 nix flake init --template github:nix-community/nixvim
 ```
 
-Alternatively, if you want a minimal flake to allow building a custom Neovim you
-can use the following:
+Alternatively, you can create a minimal flake:
 
 <details>
   <summary>Minimal flake configuration</summary>
@@ -211,14 +221,9 @@ can use the following:
   outputs =
     { nixpkgs, nixvim, ... }:
     let
-      config = {
-        colorschemes.gruvbox.enable = true;
-      };
-
       systems = [
         "x86_64-linux"
         "aarch64-linux"
-        "x86_64-darwin"
         "aarch64-darwin"
       ];
 
@@ -228,65 +233,35 @@ can use the following:
       packages = forAllSystems (
         system:
         let
-          nixvim' = nixvim.legacyPackages.${system};
-          nvim = nixvim'.makeNixvim config;
+          configuration = nixvim.lib.evalNixvim {
+            inherit system;
+
+            modules = [
+              {
+                colorschemes.gruvbox.enable = true;
+              }
+            ];
+          };
         in
         {
-          inherit nvim;
-          default = nvim;
+          default = configuration.config.build.package;
         }
       );
     };
 }
 ```
-</details>
-
-You can then run Neovim using `nix run .# -- <file>`. This can be useful to test
-config changes easily.
-
-### Advanced Usage
-
-You may want more control over the Nixvim modules, like:
-
-- Splitting your configuration in multiple files
-- Adding custom nix modules to enhance Nixvim
-- Change the nixpkgs used by Nixvim
-
-In this case, you can use the `makeNixvimWithModule` function.
-
-It takes a set with the following keys:
-- `pkgs`: The nixpkgs to use (defaults to the nixpkgs pointed at by the Nixvim flake)
-- `module`: The nix module definition used to extend Nixvim.
-  This is useful to pass additional module machinery like `options` or `imports`.
-- `extraSpecialArgs`: Extra arguments to pass to the modules when using functions.
-  Can be `self` in a flake, for example.
-
-For more detail, see the [Standalone Usage](https://nix-community.github.io/nixvim/platforms/standalone.html) section of our documentation.
-
-### With a `devShell`
-
-You can also use Nixvim to define an instance which will only be available inside a Nix `devShell`:
-
-<details>
-  <summary>devShell configuration</summary>
-
-```nix
-let
-  nvim = nixvim.legacyPackages.x86_64-linux.makeNixvim {
-    plugins.lsp.enable = true;
-  };
-in pkgs.mkShell {
-  buildInputs = [nvim];
-};
-```
 
 </details>
+
+You can then run Neovim using `nix run .# -- <file>`. This can be useful for testing configuration changes.
+
+For more information, see the [Standalone Usage](https://nix-community.github.io/nixvim/platforms/standalone.html) docs.
 
 # Documentation
 Documentation is available on this project's GitHub Pages page:
 [https://nix-community.github.io/nixvim](https://nix-community.github.io/nixvim)
 
-The stable documentation is also available at [https://nix-community.github.io/nixvim/25.11](https://nix-community.github.io/nixvim/25.11).
+The stable documentation is also available at [https://nix-community.github.io/nixvim/26.05](https://nix-community.github.io/nixvim/26.05).
 
 If the option `enableMan` is set to `true` (by default it is), man pages will also
 be installed containing the same information, they can be viewed with `man nixvim`.

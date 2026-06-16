@@ -5,6 +5,7 @@ in
 {
   # builtin sources that don't require a package
   noPackage = [
+    "alex" # was removed from nixpkgs as it is unmaintained
     "gitrebase"
     # TODO: Requires the go tree-sitter parser
     "gomodifytags"
@@ -70,6 +71,7 @@ in
       "mypy"
       "nixfmt"
       "pmd"
+      "prettier"
       "prettierd"
       "proselint"
       "protolint"
@@ -110,10 +112,6 @@ in
     ]
     # Scoped packages
     // scoped {
-      nodePackages = [
-        "alex"
-        "prettier"
-      ];
       phpPackages = [
         "phpmd"
         "phpstan"
@@ -206,10 +204,7 @@ in
       # FIXME: Can't have transition fallbacks anymore
       # TODO: replace after flake.lock update
       # prisma_format = "prisma";
-      prisma_format = [
-        "nodePackages"
-        "prisma"
-      ];
+      prisma_format = "prisma";
       ptop = "fpc";
       puppet_lint = "puppet-lint";
       qmlformat = [

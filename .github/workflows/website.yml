@@ -19,7 +19,7 @@ defaults:
 jobs:
   prepare:
     name: Version info
-    runs-on: ubuntu-24.04-arm
+    runs-on: ubuntu-slim
 
     outputs:
       matrix: ${{ steps.matrix.outputs.result }}
@@ -27,17 +27,17 @@ jobs:
 
     steps:
       - name: Checkout version-info
-        uses: actions/checkout@v5
+        uses: actions/checkout@v6
         with:
           sparse-checkout: version-info.toml
           sparse-checkout-cone-mode: false
 
       - name: Produce build matrix
         id: matrix
-        uses: mikefarah/yq@master
-        with:
-          cmd: |
-            yq --no-colors --output-format=json '
+        run: |
+          {
+            echo -n "result="
+            yq --no-colors --output-format=json --indent=0 '
               [
                 .versions
                 | to_entries
@@ -52,13 +52,14 @@ jobs:
                 | select(.ref != "main").base-href = "\(.base-href)\(.name)/"
               ]
             ' version-info.toml
+          } >> "$GITHUB_OUTPUT"
 
       - name: Produce "other versions" array
         id: versions
-        uses: mikefarah/yq@master
-        with:
-          cmd: |
-            yq --no-colors --output-format=json '
+        run: |
+          {
+            echo -n "result="
+            yq --no-colors --output-format=json --indent=0 '
               [
                 .versions
                 | to_entries
@@ -73,6 +74,7 @@ jobs:
                 | select(.branch == "main").baseHref = "/nixvim/"
               ]
             ' version-info.toml
+          } >> "$GITHUB_OUTPUT"
 
   build:
     name: Build ${{ matrix.name }}
@@ -94,19 +96,23 @@ jobs:
           name: nix-community
           authToken: ${{ secrets.CACHIX_AUTH_TOKEN }}
 
-      - name: Checkout
-        uses: actions/checkout@v5
-        with:
-          ref: ${{ matrix.ref }}
-
-        # Uses the build-docs action from the checked-out nixvim branch
+      # Build the `docs` flake output from the corresponding branch
+      # Uses --impure to enable `getEnv`
       - name: Build docs
-        uses: ./.github/actions/build-docs
+        env:
+          ref: ${{ matrix.ref }}
+          outLink: build/${{ matrix.sub-path }}
+          NIXVIM_DOCS_BASE_HREF: ${{ matrix.base-href }}
+          NIXVIM_DOCS_AVAILABLE_VERSIONS: ${{ needs.prepare.outputs.versions }}
+        run: |
+          nix build "github:$GITHUB_REPOSITORY/$ref#docs" --impure --out-link "$outLink"
+
+      - name: Upload artifact
+        uses: actions/upload-pages-artifact@v5
         with:
-          artifact-name: ${{ matrix.name }}-docs
-          sub-path: ${{ matrix.sub-path }}
-          base-href: ${{ matrix.base-href }}
-          versions: ${{ needs.prepare.outputs.versions }}
+          path: build
+          name: ${{ matrix.name }}-docs
+          retention-days: 1
 
   combine:
     name: Combine builds
@@ -119,7 +125,7 @@ jobs:
 
     steps:
       - name: Download artifacts
-        uses: actions/download-artifact@v7
+        uses: actions/download-artifact@v8
         with:
           path: ${{ env.in }}
           pattern: "*-docs"
@@ -136,7 +142,7 @@ jobs:
               --directory "$out"
 
       - name: Upload artifact
-        uses: actions/upload-pages-artifact@v4
+        uses: actions/upload-pages-artifact@v5
         with:
           path: ${{ env.out }}
 
@@ -156,4 +162,4 @@ jobs:
     steps:
       - name: Deploy to GitHub Pages
         id: deployment
-        uses: actions/deploy-pages@v4
+        uses: actions/deploy-pages@v5

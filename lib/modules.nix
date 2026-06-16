@@ -1,22 +1,54 @@
 {
   lib,
   self,
-  flake,
+  flake ? null,
 }:
-let
-  removed = {
-    # Removed 2024-09-24
-    getAssertionMessages = "";
-    # Removed 2024-09-27
-    specialArgs = "It has been integrated into `evalNixvim`";
-    specialArgsWith = "It has been integrated into `evalNixvim`";
-    # Removed 2024-12-18
-    applyExtraConfig = "It has been moved to `lib.plugins.utils`";
-    mkConfigAt = "It has been moved to `lib.plugins.utils`";
-  };
-in
 {
-  # Evaluate nixvim modules, checking warnings and assertions
+  /**
+    Evaluate Nixvim modules into a module system configuration.
+
+    # Input
+
+    An attribute set with the following fields:
+    : `modules`
+      : An optional list of modules.
+        These are merged together to form the final configuration.
+
+      `extraSpecialArgs`
+      : An optional AttrSet, appended to `specialArgs`.
+
+        `specialArgs` is an attribute set of module arguments that can be used in `imports`.
+        In contrast to `config._module.args`, which is only available after imports have been resolved.
+
+        **Caution:** relying on special args can make your modules less portable.
+
+      `system`
+      : An optional string, used to define `nixpkgs.hostPlatform`.
+
+    # Output
+
+    Returns a Nixvim configuration, as produced by `lib.evalModules`.
+
+    Notable attributes include:
+    : `config`
+      : The nested attribute set of all merged option values.
+
+      `options`
+      : The nested attribute set of all option declarations.
+
+      `type`
+      : A module system type.
+        See: <https://nixos.org/manual/nixpkgs/unstable/#module-system-lib-evalModules-return-value-type>
+
+      `extendModules`
+      : Extends the current configuration with additional modules.
+        See: <https://nixos.org/manual/nixpkgs/unstable/#module-system-lib-evalModules-return-value-extendModules>
+
+    # See Also
+
+    - Module System: <https://nixos.org/manual/nixpkgs/unstable/#module-system>
+    - `lib.evalModules`: <https://nixos.org/manual/nixpkgs/unstable/#module-system-lib-evalModules>
+  */
   evalNixvim =
     {
       modules ? [ ],
@@ -34,10 +66,10 @@ in
     lib.evalModules {
       modules = modules ++ [
         ../modules/top-level
-        {
+        (lib.optionalAttrs (lib.isAttrs flake) {
           _file = "<nixvim-flake>";
           flake = lib.mkOptionDefault flake;
-        }
+        })
         (lib.optionalAttrs (system != null) {
           _file = "evalNixvim";
           nixpkgs.hostPlatform = lib.mkOptionDefault { inherit system; };
@@ -48,12 +80,6 @@ in
         # however see https://github.com/nix-community/nixvim/issues/2879
         inherit lib;
         modulesPath = ../modules;
-        # TODO: deprecated 2025-11-19
-        helpers = lib.warn ''
-          nixvim: the `helpers` module arg has been renamed to `lib.nixvim`.
-          Nixvim modules can access this via the `lib` module arg.
-          For wrapper modules (e.g. NixOS or Home Manager modules), see:
-          https://nix-community.github.io/nixvim/lib/nixvim/index.html#accessing-nixvims-functions'' self;
       }
       // extraSpecialArgs;
     };
@@ -140,7 +166,3 @@ in
     args: (self.modules.evalNixvim args).config.build.test
   );
 }
-// lib.mapAttrs (
-  name: msg:
-  throw ("`modules.${name}` has been removed." + lib.optionalString (msg != "") (" " + msg))
-) removed

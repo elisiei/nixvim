@@ -1,4 +1,4 @@
-{ config, lib, ... }:
+{ lib, ... }:
 let
   inherit (lib) mkOption types;
   inherit (lib.nixvim)
@@ -46,10 +46,12 @@ let
   };
 
   # As of 2025-11-21, `either` supports `valueMeta`, while `nullOr` does not.
-  # The `lua` deprecation warning in `modules/keymaps.nix` requires `valueMeta`,
+  # See https://github.com/NixOS/nixpkgs/pull/525519
+  #
+  # The `lua` removal assertions in `modules/keymaps.nix` require `valueMeta`,
   # so re-implement `nullOr` using `types.either` as a workaround.
   #
-  # TODO: Remove with the warning, or once `nullOr` supports v2 check and merge.
+  # TODO: Remove when assertions are dropped or `nullOr` supports v2 checkAndMerge.
   v2NullOr =
     type:
     let
@@ -89,18 +91,6 @@ lib.nixvim.plugins.mkNeovimPlugin {
   };
 
   extraConfig = cfg: {
-    # TODO: added 2024-09-20 remove after 24.11
-    plugins.web-devicons = lib.mkIf (
-      !(
-        (
-          config.plugins.mini.enable
-          && config.plugins.mini.modules ? icons
-          && config.plugins.mini.mockDevIcons
-        )
-        || (config.plugins.mini-icons.enable && config.plugins.mini-icons.mockDevIcons)
-      )
-    ) { enable = lib.mkOverride 1490 true; };
-
     keymaps = lib.filter (keymap: keymap != null) (
       # TODO: switch to `attrValues cfg.keymaps` when removing the deprecation warnings above:
       lib.attrValues (lib.filterAttrs (n: v: n != "silent") cfg.keymaps)

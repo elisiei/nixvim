@@ -13,6 +13,14 @@ let
 in
 {
   options = {
+    autowrapRuntimeDeps = mkOption {
+      type = types.bool;
+      default = true;
+      description = ''
+        Whether to automatically add plugin runtime dependencies to the Neovim wrapper's `PATH`.
+      '';
+    };
+
     viAlias = mkOption {
       type = types.bool;
       default = false;
@@ -69,7 +77,7 @@ in
       description = ''
         Whether the config will be included in the wrapper script.
 
-        When enabled, the Nixvim config will be passed to `nvim` using the `-u` option.
+        When enabled, the Nixvim config will be passed to `nvim` using the `VIMINIT` environment variable.
       '';
       defaultText = lib.literalMD ''
         Configured by your installation method: `false` when using the Home Manager module, `true` otherwise.
@@ -82,6 +90,7 @@ in
         Whether to keep the (impure) nvim config directory in the runtimepath.
 
         If disabled, the XDG config dirs `nvim` and `nvim/after` will be removed from the runtimepath.
+        When `wrapRc` is enabled, the wrapper will also ignore system/XDG config dirs during startup.
       '';
       defaultText = lib.literalMD ''
         Configured by your installation method: `true` when using the Home Manager module, `false` otherwise.
@@ -212,6 +221,7 @@ in
         (pkgs.wrapNeovimUnstable package {
           extraLuaPackages = luaPackagesForWrapper;
           inherit (config)
+            autowrapRuntimeDeps
             extraPython3Packages
             viAlias
             vimAlias
@@ -241,8 +251,17 @@ in
             dontFixup = true;
           };
 
+      nvimPackage = wrappedNeovim.override (prev: {
+        wrapperArgs =
+          (if lib.isString prev.wrapperArgs then prev.wrapperArgs else lib.escapeShellArgs prev.wrapperArgs)
+          + " "
+          + extraWrapperArgs;
+        wrapRc = false;
+      });
+
       customRC = lib.nixvim.concatNonEmptyLines [
         (lib.nixvim.wrapVimscriptForLua wrappedNeovim.initRc)
+        (nvimPackage.passthru.providerLuaRc or "")
         config.content
       ];
 
@@ -257,6 +276,48 @@ in
           initByteCompiled
         else
           initSource;
+
+      # `:help initialization` says sysinit is sourced before `VIMINIT` from
+      # `$XDG_CONFIG_DIRS/nvim/sysinit.vim` or, as fallback, `$VIM/sysinit.vim`.
+      impureStartupEnvVars = [
+        "XDG_CONFIG_DIRS"
+        "VIM"
+      ];
+
+      # Runs via `--cmd` before sysinit, so system/XDG config dirs are hidden
+      # before Nvim checks them without relying on makeWrapper-only `--run`.
+      saveAndClearImpureStartupEnvVars = ''
+        _G.__nixvim_impure_startup_env = {}
+        for _, name in ipairs(${lib.nixvim.toLuaObject impureStartupEnvVars}) do
+          local value = vim.env[name]
+          if value ~= nil then
+            _G.__nixvim_impure_startup_env[name] = {
+              set = true,
+              value = value,
+            }
+          else
+            _G.__nixvim_impure_startup_env[name] = {
+              set = false,
+            }
+          end
+          vim.env[name] = nil
+        end
+      '';
+
+      # Restore before loading the generated config so user code sees the original
+      # environment while sysinit remains skipped.
+      restoreImpureStartupEnvVars = ''
+        local saved_impure_startup_env = _G.__nixvim_impure_startup_env or {}
+        for _, name in ipairs(${lib.nixvim.toLuaObject impureStartupEnvVars}) do
+          local saved = saved_impure_startup_env[name]
+          if saved ~= nil and saved.set then
+            vim.env[name] = saved.value
+          else
+            vim.env[name] = nil
+          end
+        end
+        _G.__nixvim_impure_startup_env = nil
+      '';
 
       extraWrapperArgs = builtins.concatStringsSep " " (
         # Setting environment variables in the wrapper
@@ -274,7 +335,21 @@ in
         ++ (optional (
           config.extraPackagesAfter != [ ]
         ) ''--suffix PATH : "${lib.makeBinPath config.extraPackagesAfter}"'')
-        ++ (optional config.wrapRc ''--add-flags -u --add-flags "${initFile}"'')
+        ++ (optional (config.wrapRc && !config.impureRtp) (
+          lib.escapeShellArgs [
+            "--add-flag"
+            "--cmd"
+            "--add-flag"
+            "lua ${saveAndClearImpureStartupEnvVars}"
+          ]
+        ))
+        ++ (optional config.wrapRc (
+          lib.escapeShellArgs [
+            "--set"
+            "VIMINIT"
+            "lua ${lib.optionalString (!config.impureRtp) restoreImpureStartupEnvVars} dofile('${initFile}')"
+          ]
+        ))
       );
 
       package =
@@ -300,16 +375,8 @@ in
     in
     {
       build = {
-        inherit initFile initSource;
+        inherit initFile initSource nvimPackage;
         package = config.build.packageUnchecked;
-
-        nvimPackage = wrappedNeovim.override (prev: {
-          wrapperArgs =
-            (if lib.isString prev.wrapperArgs then prev.wrapperArgs else lib.escapeShellArgs prev.wrapperArgs)
-            + " "
-            + extraWrapperArgs;
-          wrapRc = false;
-        });
 
         packageUnchecked = pkgs.symlinkJoin {
           name = "nixvim";
@@ -340,12 +407,24 @@ in
           '';
         };
 
-        manDocsPackage = config.flake.packages.${system}.man-docs;
+        # TODO: make `build.manDocsPackage` available in non-flake evals.
+        # Also update `enableMan` default value.
+        manDocsPackage =
+          lib.throwIfNot options.flake.isDefined
+            "`${options.build.manDocsPackage}` currently requires `${options.flake}`, which is not defined."
+            config.flake.packages.${system}.man-docs;
       };
 
       # Set `wrapRc` and `impureRtp`s option defaults with even lower priority than `mkOptionDefault`
       wrapRc = lib.mkOverride 1501 true;
       impureRtp = lib.mkOverride 1501 false;
+
+      assertions = lib.nixvim.mkAssertions "output" [
+        {
+          assertion = config.impureRtp || config.wrapRc;
+          message = "`impureRtp = false` requires `wrapRc = true` so Nixvim can suppress system/XDG startup config.";
+        }
+      ];
 
       extraConfigLuaPre = lib.mkOrder 100 (
         lib.concatStringsSep "\n" (

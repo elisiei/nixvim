@@ -122,6 +122,7 @@ in
       bat.default = "bat";
       claude-code.default = "claude-code";
       codeium.default = "codeium";
+      codex.default = "codex";
       copilot.default = "github-copilot-cli";
       coreutils = {
         default = "coreutils";
@@ -130,6 +131,7 @@ in
       cornelis.default = "cornelis";
       ctags.default = "ctags";
       curl.default = "curl";
+      cspell.default = "cspell";
       direnv.default = "direnv";
       distant.default = "distant";
       efm-langserver.default = "efm-langserver";
@@ -153,10 +155,12 @@ in
       grep.default = "gnugrep";
       gzip.default = "gzip";
       imagemagick.default = "imagemagick";
+      jujutsu.default = "jujutsu";
       jupytext.default = [
         "python313Packages"
         "jupytext"
       ];
+      just.default = "just";
       lazygit.default = "lazygit";
       lean.default = "lean4";
       ledger.default = "ledger";
@@ -168,6 +172,7 @@ in
       };
       opencode.default = "opencode";
       plantuml.default = "plantuml";
+      python3.default = "python3";
       ripgrep.default = "ripgrep";
       roslyn_ls.default = "roslyn-ls";
       rust-analyzer.default = "rust-analyzer";
@@ -175,6 +180,8 @@ in
       sd.default = "sd";
       sed.default = "gnused";
       skim.default = "skim";
+      sioyek.default = "sioyek";
+      sqlite.default = "sqlite";
       television.default = "television";
       texpresso.default = "texpresso";
       tinymist.default = "tinymist";
@@ -183,6 +190,7 @@ in
       typst.default = "typst";
       ueberzug.default = "ueberzugpp";
       util-linux.default = "util-linux";
+      vectorcode.default = "vectorcode";
       websocat.default = "websocat";
       wezterm.default = "wezterm";
       which.default = "which";

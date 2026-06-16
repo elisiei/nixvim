@@ -70,6 +70,13 @@
     name = "Fran Cirka";
     source = "nixpkgs";
   };
+  FilippoAiraldi = {
+    email = "filippo.airaldi@proton.me";
+    github = "FilippoAiraldi";
+    githubId = 48798518;
+    name = "Filippo Airaldi";
+    source = "nixpkgs";
+  };
   Fovir-GitHub = {
     email = "fovir@disroot.org";
     github = "Fovir-GitHub";
@@ -301,6 +308,12 @@
     name = "Jalil David Salamé Messina";
     source = "nixvim";
   };
+  jaredmontoya = {
+    github = "jaredmontoya";
+    githubId = 49511278;
+    name = "Jared Montoya";
+    source = "nixpkgs";
+  };
   jolars = {
     email = "johan@jolars.co";
     github = "jolars";
@@ -423,13 +436,6 @@
     name = "Refael Sheinker";
     source = "nixvim";
   };
-  santoshxshrestha = {
-    email = "santoshxshrestha@gmail.com";
-    github = "santoshxshrestha";
-    githubId = 182977126;
-    name = "Santosh Shrestha";
-    source = "nixpkgs";
-  };
   saygo-png = {
     github = "saygo-png";
     githubId = 131687037;
@@ -441,6 +447,18 @@
     githubId = 1442292;
     name = "sheemap";
     source = "nixvim";
+  };
+  sportshead = {
+    email = "me@sportshead.dev";
+    github = "sportshead";
+    githubId = 32637656;
+    keys = [
+      {
+        fingerprint = "A6B6 D031 782E BDF7 631A  8E7E A874 DB2C BFD3 CFD0";
+      }
+    ];
+    name = "sportshead";
+    source = "nixpkgs";
   };
   theabm = {
     email = "andres_bermeo@outlook.com";
@@ -454,6 +472,13 @@
     github = "traxys";
     githubId = 5623227;
     name = "Quentin Boyer";
+    source = "nixpkgs";
+  };
+  vimlinuz = {
+    email = "vimlinuz@gmail.com";
+    github = "vimlinuz";
+    githubId = 182977126;
+    name = "Santosh Shrestha";
     source = "nixpkgs";
   };
   wadsaek = {

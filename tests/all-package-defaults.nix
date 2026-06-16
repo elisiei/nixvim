@@ -38,8 +38,14 @@ let
     "skim"
   ]
   ++ lib.optionals (hostPlatform.isLinux && hostPlatform.isAarch64) [
+    # 2026-06-15: semgrep fails its installCheckPhase
+    "semgrep"
+
     # "tabnine"
     "cmp-tabnine"
+
+    # 2026-05-20: vectorcode is marked badPlatforms on aarch64-linux
+    "vectorcode.nvim"
 
     # luajitPackages.neotest is flaky: (temporarily?) disable tests that depend on it
     "compiler.nvim"
@@ -75,9 +81,44 @@ let
     "rustaceanvim"
   ]
   ++ lib.optionals hostPlatform.isDarwin [
+    # 2026-05-28: build failure (compiler-rt-libc)
+    "ols"
+
+    # 2026-05-04: build failure (appstream)
+    "blueprint-compiler"
+    "openscad.nvim"
+    "zathura-with-plugins"
+
+    # 2026-05-01: ghc is not cached on CNO and is too heavy to build for the nix-community builders
+    "elm-format"
+
+    # 2026-04-28: d2 depends on mesa-libgbm -> libdrm, which fails on Darwin
+    "d2"
+    "wl-clipboard" # wayland
+
+    # 2026-04-28: bundled tree-sitter grammar build failure on Darwin
+    "kulala.nvim"
+
+    # 2026-04-28: long Darwin build timing out in all-package-defaults
+    "deno"
+    "ghc"
+
+    # 2026-04-09: OCaml toolchain build failure on Darwin
+    "flow"
+    "fstar"
+
+    # 2026-04-09: build failure
+    "fortitude"
+
+    # 2026-02-05: build failure
+    "marksman"
+
     # 2026-02-04 dependency llvmPackages_22.llvm is broken
     "ameba"
     "crystal"
+
+    # 2026-01-23: build failure on aarch64-darwin
+    "github-copilot-cli"
 
     # 2025-11-26 build failure
     "nvim-spectre"
@@ -87,6 +128,7 @@ let
 
     # 2025-11-16 dependency pyarrow is broken
     "vectorcode"
+    "vectorcode.nvim"
 
     # 2025-11-16 fish is broken
     "direnv"
@@ -102,115 +144,43 @@ let
     "actionlint"
     "ruby3.3-solargraph"
 
-    # Transient dependency `kicad-base` is marked broken
-    # https://github.com/NixOS/nixpkgs/pull/403987
-    "atopile"
-
-    # xdotool is not available on darwin
-    "fontpreview"
-
-    # 2025-09-27 build failure
-    "open-policy-agent"
-
-    # 2025-09-08 build failure
-    "mint"
-
-    # Marked as broken
-    "akku-scheme-langserver"
-    "rubyfmt"
-    "wl-clipboard" # wayland
-  ]
-  ++ lib.optionals (hostPlatform.isDarwin && hostPlatform.isx86_64) [
-    # 2026-02-05: dependency gdb is broken
-    "nimlangserver"
-    "nimlsp"
-    "x86_64-apple-darwin-nim-wrapper"
-
-    # 2026-01-23: dependency models-dev is broken
-    "opencode"
-    "opencode.nvim"
-
-    # 2025-12-24: build failure
-    # I (@GaetanLepage) am able to build this package on my system, but it is not cached on
-    # hydra.nixos.org and builbot fails at building it
-    "trivy"
-
-    # 2025-11-16 dependency libsigsegv is broken
-    "texlive"
-    "texlive-combined-medium"
-
-    # 2025-11-16 dependency prelude is broken
-    "idris2-lsp"
-
-    # 2025-10-20 build failure
-    # error: concurrency is only available in macOS 10.15.0 or newer
-    "sourcekit-lsp"
-
-    # As of 2024-07-31, dmd is broken on x86_64-darwin
-    # https://github.com/NixOS/nixpkgs/pull/331373
-    "dmd"
-
-    # 2025-10-02 zig-hook is marked as broken
-    "superhtml"
-
-    # 2025-09-16 marked as broken
-    # https://github.com/NixOS/nixpkgs/pull/440273/commits/e71ade9ba7c5feca1160acb68c643812e14e67f3
-    "fpc"
-
-    # Marked as broken
-    "mesonlsp"
-
-    # No hash for system
-    "verible"
-
-    # 2025-09-16 zig/zig-hook is marked as broken
-    # https://github.com/NixOS/nixpkgs/commit/bc725b12b2595951a3f4b112d59716d30b41001a
-    "zf"
-    "zls"
-
-    # 2026-01-23: build failures on x86_64-darwin
-    "arrow-cpp"
-    "azurite"
-    "basedpyright"
-    "ccls"
-    "dbee-bin"
-    "gemini-cli"
-    "github-copilot-cli"
-    "nvim-dbee"
-    "odin"
-    "ols"
-    "thrift"
-
-    # luau-lsp is marked as broken on x86_64-darwin
-    "luau-lsp.nvim"
-  ]
-  ++ lib.optionals (hostPlatform.isDarwin && hostPlatform.isAarch64) [
-    # 2026-02-05: build failure
-    "marksman"
+    # 2025-10-27: dependency cargo-nextest build failure
+    # https://github.com/NixOS/nixpkgs/pull/455250#issuecomment-3451295118
+    "air-formatter"
 
     # 2025-10-20: build failure
     # error: 'to_chars' is unavailable: introduced in macOS 13.3 unknown
     "mesonlsp"
 
-    # 2025-10-27: dependency cargo-nextest build failure
-    # https://github.com/NixOS/nixpkgs/pull/455250#issuecomment-3451295118
-    "air-formatter"
-
     # 2025-10-20: dependency mlton build failure
     "smlfmt"
 
-    # 2026-01-23: build failure on aarch64-darwin
-    "github-copilot-cli"
+    # 2025-10-03: Transient dependency `kicad-base` is marked broken
+    # https://github.com/NixOS/nixpkgs/pull/403987
+    "atopile"
 
-    # As of 2025-07-25, zig-zlint is failing on aarch64-darwin
-    "zig-zlint"
+    # 2025-09-27 build failure
+    "open-policy-agent"
 
-    # 2025-09-08, build failure
+    # 2025-09-16: zig/zig-hook fails on aarch64-darwin
+    "zf"
+
+    # 2025-09-08 build failure
+    "mint"
+
+    # 2025-09-08: build failure
     # https://github.com/NixOS/nixpkgs/pull/441058
     "verible"
 
-    # 2025-09-16 zig/zig-hook is marked as broken on x86_64-darwin; also fails on aarch64-darwin
-    "zf"
+    # 2025-07-25: zig-zlint is failing on aarch64-darwin
+    "zig-zlint"
+
+    # xdotool is not available on darwin
+    "fontpreview"
+
+    # Marked as broken
+    "akku-scheme-langserver"
+    "rubyfmt"
   ];
 
   isEnabled = p: !(builtins.elem (lib.getName p) disabledPackages);

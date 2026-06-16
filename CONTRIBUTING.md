@@ -7,7 +7,7 @@ This document is mainly for contributors to Nixvim, but it can also be useful fo
 In order to submit a change you must be careful of several points:
 
 - The code must be properly formatted. This can be done through `nix fmt`.
-- The tests must pass. This can be done through `nix flake check --all-systems` (this also checks formatting).
+- Relevant tests should pass locally. For routine plugin changes, prefer the targeted test described in [Tests](#tests). CI will run broader checks on pull requests.
 - The change should try to avoid breaking existing configurations.
 - If the change introduces a new feature it should add tests for it (see the architecture section for details).
 - The commit title should be consistent with our style. This usually looks like "plugins/\<name\>: fixed some bug",
@@ -41,6 +41,14 @@ To add a new plugin you need to do the following.
 
 - Most plugins should be added to [`plugins/by-name/<name>`](plugins/by-name).
   Plugins in `by-name` are automatically imported 🚀
+- You can generate the initial module and matching test source with:
+
+  ```bash
+  nix develop --command new-plugin <plugin-name> --package <vimPlugins-package> --maintainer <maintainer>
+  ```
+
+  Use `--dry-run` to preview the generated paths and template contents. The command normalizes the plugin name, writes `plugins/by-name/<name>/default.nix`, and writes `tests/test-sources/plugins/by-name/<name>/default.nix`.
+  After scaffolding, fill in the plugin metadata, replace any template TODOs, decide whether the plugin needs `callSetup`, add a realistic `settingsExample` when useful, and run the generated targeted test.
 - Occasionally, you may wish to add a plugin to a directory outside of `by-name`, such as [`plugins/colorschemes`](plugins/colorschemes).
   If so, you will also need to add your plugin to [`plugins/default.nix`](plugins/default.nix) to ensure it gets imported.
   Note: the imports list is sorted and grouped. In vim, you can usually use `V` (visual-line mode) with the `:sort` command to achieve the desired result.
@@ -68,7 +76,7 @@ A template plugin can be found in (plugins/TEMPLATE.nix)[https://github.com/nix-
 | **name**                     | The name of the Neovim plugin.                                                                                                                                                                                                                       | Yes      | N/A                                                                                             |
 | **url**                      | The URL of the plugin's repository.                                                                                                                                                                                                                  | Yes      | `package` parameter's `meta.homepage`                                                           |
 | **maintainers**              | Maintainers for the plugin.                                                                                                                                                                                                                          | Yes      | N/A                                                                                             |
-| **callSetup**                | Whether to call the setup function. Useful when `setup` function needs customizations.                                                                                                                                                               | No       | `true`                                                                                          |
+| **callSetup**                | The plugin's default behavior for generating the setup function call. Accepts `true`, `false`, or `"optional"`. `"optional"` only emits the generated setup call when `settings` was explicitly defined, so untouched defaults do not call `setup()`, while an explicit `settings = { }` still does. When this default is not `false`, users can override it with `plugins.<name>.callSetup = null \| true \| false`. Useful when `setup()` is only needed for customizations. | No       | `true`                                                                                          |
 | **colorscheme**              | The name of the colorscheme.                                                                                                                                                                                                                         | No       | `name` parameter                                                                                |
 | **configLocation**           | The option location where the lua configuration should be installed. Nested option locations can be represented as a list. The location can also be wrapped using `lib.mkBefore`, `lib.mkAfter`, or `lib.mkOrder`.                                   | No       | `"extraConfigLuaPre"` if `isColorscheme` then `extraConfigLuaPre`, otherwise `"extraConfigLua"` |
 | **dependencies**             | A list of [`dependencies`] to enable by default with this plugin. (List of strings)                                                                                                                                                                  | No       | `[]`                                                                                            |
@@ -296,9 +304,16 @@ In either case, you don't need to bother implementing this part. It is done auto
 
 Most of the tests of Nixvim consist of creating a Neovim derivation with the supplied Nixvim configuration, and then trying to execute Neovim to check for any output. All output is considered to be an error.
 
-The tests are located in the [tests/test-sources](tests/test-sources) directory, and should be added to a file in the same hierarchy than the repository. For example if a plugin is defined in `./plugins/ui/foo.nix` the test should be added in `./tests/test-sources/ui/foo.nix`.
+The tests are located in the [tests/test-sources](tests/test-sources) directory, and should be added to a file in the same hierarchy as the repository. For example, if a plugin is defined in `./plugins/ui/foo.nix`, the test should be added in `./tests/test-sources/plugins/ui/foo.nix`.
 
 Tests can either be a simple attribute set, or a function taking `{pkgs}` as an input. The keys of the set are configuration names, and the values are a Nixvim configuration.
+
+These configuration names are just conventions, not special values interpreted by the test runner. Common ones include:
+
+- `defaults`: explicitly sets the plugin or module to the default values documented by Nixvim's settings options. This is mainly useful when those defaults are part of Nixvim's option interface; otherwise `empty` is usually enough.
+- `empty`: enables the feature with no additional configuration.
+- `example`: uses a configuration that differs from the defaults and reflects something a user might realistically want to do.
+- `no-packages`: checks that the feature still evaluates or configures correctly when package/dependency installation is disabled.
 
 You can specify the special `test` attribute in the configuration that will not be interpreted by Nixvim, but only the test runner. The following keys are available:
 
@@ -306,6 +321,11 @@ You can specify the special `test` attribute in the configuration that will not 
 
 > [!TIP]
 > A single test can be run with `nix develop --command tests --interactive`. This launches the testing suite in interactive mode, allowing you to easily search for and select specific tests to run.
+> For plugin modules under `plugins/by-name/<name>`, the generated test name is usually `plugins-by-name-<name>`, so it can be run directly with:
+>
+> ```bash
+> nix develop --command tests plugins-by-name-<name>
+> ```
 
 > [!WARNING]
 > Running the entire test suite locally is not necessary in most cases. Instead, you may find it more efficient to focus on specific tests relevant to your changes, as Continuous Integration (CI) will run the full test suite on any Pull Requests (PRs) you open. This ensures comprehensive coverage without requiring the full suite to be run locally every time.

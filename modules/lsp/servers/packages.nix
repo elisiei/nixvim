@@ -31,8 +31,10 @@
     "contextive"
     # coqPackages.coq-lsp is unavailable since the bump to coq 9.0: https://github.com/NixOS/nixpkgs/pull/389454
     "coq_lsp"
+    "cqlls"
     "cspell_ls"
     "css_variables"
+    "csskit"
     "cssmodules_ls"
     "cucumber_language_server"
     "custom_elements_ls"
@@ -68,6 +70,7 @@
     "graphql" # nodePackages.graphql-language-service-cli was removed in https://github.com/NixOS/nixpkgs/pull/382557
     "groovyls"
     "guile_ls"
+    "hare_lsp"
     "hdl_checker"
     "herb_ls"
     "hhvm"
@@ -80,7 +83,9 @@
     "intelephense"
     "janet_lsp"
     "jinja_lsp"
+    "jls"
     "julials"
+    "kakehashi"
     "kcl"
     "kotlin_lsp"
     "kulala_ls"
@@ -115,13 +120,12 @@
     "pico8_ls"
     "please"
     "pli"
+    "pony_language_server"
     "poryscript_pls"
     "powershell_es"
-    "prismals"
     "prolog_ls"
     "prosemd_lsp"
     "pug"
-    "pony_language_server"
     "puppet"
     "purescriptls"
     "pyre"
@@ -140,7 +144,9 @@
     "salt_ls"
     "scry" # deprecated and removed from nixpkgs
     "selene3p_ls"
+    "shuck"
     "sixtyfps"
+    "slang_server"
     "slangd"
     "smarty_ls"
     "smithy_ls"
@@ -152,8 +158,10 @@
     "solidity_ls_nomicfoundation"
     "somesass_ls"
     "sorbet"
+    "spade_ls"
     "spyglassmc_language_server"
     "sqlls"
+    "stan_ls"
     "steep"
     "stimulus_ls"
     "stylua3p_ls"
@@ -177,6 +185,7 @@
     "veridian"
     "vespa_ls"
     "visualforce_ls"
+    "vimdoc_ls"
     # coqPackages.vscoq-language-server is unavailable since the bump to coq 9.0: https://github.com/NixOS/nixpkgs/pull/389454
     "vscoqtop"
     "wasm_language_tools"
@@ -216,11 +225,13 @@
     crystalline = "crystalline";
     csharp_ls = "csharp-ls";
     cssls = "vscode-langservers-extracted";
+    ctags_lsp = "ctags-lsp";
     cue = "cue";
     dafny = "dafny";
     dagger = "cuelsp";
     dartls = "dart";
     denols = "deno";
+    dexter = "dexter";
     dhall_lsp_server = "dhall-lsp-server";
     diagnosticls = "diagnostic-languageserver";
     digestif = [
@@ -252,6 +263,7 @@
     fennel_ls = "fennel-ls";
     fish_lsp = "fish-lsp";
     flow = "flow";
+    fortitude = "fortitude";
     fortls = "fortls";
     fsautocomplete = "fsautocomplete";
     fstar = "fstar";
@@ -302,6 +314,7 @@
     mesonlsp = "mesonlsp";
     metals = "metals";
     mint = "mint";
+    mpls = "mpls";
     mlir_lsp_server = [
       "llvmPackages"
       "mlir"
@@ -329,6 +342,7 @@
     openscad_lsp = "openscad-lsp";
     oxfmt = "oxfmt";
     oxlint = "oxlint";
+    panache = "panache";
     perlnavigator = "perlnavigator";
     perlpls = [
       "perlPackages"
@@ -340,7 +354,10 @@
       "phan"
     ];
     phpactor = "phpactor";
+    phpantom_lsp = "phpantom-lsp";
+    pony_lsp = "ponyc";
     postgres_lsp = "postgres-language-server";
+    prismals = "prisma-language-server";
     protols = "protols";
     psalm = [
       "phpPackages"
@@ -452,6 +469,7 @@
     vue_ls = "vue-language-server";
     wgsl_analyzer = "wgsl-analyzer";
     yamlls = "yaml-language-server"; # Not available in coq 9.0: https://github.com/NixOS/nixpkgs/pull/389454
+    zizmor = "zizmor";
     zk = "zk";
     zls = "zls";
     zuban = "zuban";

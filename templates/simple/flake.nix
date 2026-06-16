@@ -13,35 +13,32 @@
       systems = [
         "x86_64-linux"
         "aarch64-linux"
-        "x86_64-darwin"
         "aarch64-darwin"
       ];
 
       perSystem =
         { system, ... }:
         let
-          nixvimLib = nixvim.lib.${system};
-          nixvim' = nixvim.legacyPackages.${system};
-          nixvimModule = {
-            inherit system; # or alternatively, set `pkgs`
-            module = import ./config; # import the module directly
+          configuration = nixvim.lib.evalNixvim {
+            # Specify the target system.
+            # Alternatively configure `nixpkgs` options in your modules.
+            inherit system;
+
+            # Import your Nixvim modules
+            modules = [ ./config ];
+
             # You can use `extraSpecialArgs` to pass additional arguments to your module files
             extraSpecialArgs = {
               # inherit (inputs) foo;
             };
           };
-          nvim = nixvim'.makeNixvimWithModule nixvimModule;
         in
         {
-          checks = {
-            # Run `nix flake check .` to verify that your config is not broken
-            default = nixvimLib.check.mkTestDerivationFromNixvimModule nixvimModule;
-          };
+          # Run `nix flake check .` to verify that your config is not broken
+          checks.default = configuration.config.build.test;
 
-          packages = {
-            # Lets you run `nix run .` to start nixvim
-            default = nvim;
-          };
+          # Lets you run `nix run .` to start nixvim
+          packages.default = configuration.config.build.package;
         };
     };
 }

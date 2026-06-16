@@ -9,16 +9,26 @@ let
   cfg = config.nixpkgs;
   opt = options.nixpkgs;
 
+  pinned = import ../../nixpkgs.nix;
+  # NOTE: `pinned.rev` is the same as `versionInfo.nixpkgs_rev`, but the latter is cheaper to eval.
+  # Evaluating `pinned` may cause some `fetchTree` implementations to fetch eagerly (unverified).
+  versionInfo = lib.importTOML ../../version-info.toml;
+
+  optionDefaultPrio = (lib.mkOptionDefault null).priority;
+
   isConfig = x: builtins.isAttrs x || lib.isFunction x;
 
   mergeConfig =
     lhs_: rhs_:
     let
       optCall = maybeFn: x: if lib.isFunction maybeFn then maybeFn x else maybeFn;
-      lhs = optCall lhs_ { inherit pkgs; };
-      rhs = optCall rhs_ { inherit pkgs; };
+      lhs = optCall lhs_ { inherit lib pkgs; };
+      rhs = optCall rhs_ { inherit lib pkgs; };
     in
     lib.recursiveUpdate lhs rhs
+    // lib.optionalAttrs (lhs ? allowUnfreePackages) {
+      allowUnfreePackages = lhs.allowUnfreePackages ++ (lib.attrByPath [ "allowUnfreePackages" ] [ ] rhs);
+    }
     // lib.optionalAttrs (lhs ? packageOverrides) {
       packageOverrides =
         pkgs:
@@ -146,9 +156,7 @@ in
       example = {
         system = "aarch64-linux";
       };
-      # FIXME: An elaborated platform is not supported,
-      # but an `apply` function is probably still needed.
-      # See https://github.com/NixOS/nixpkgs/pull/376988
+      apply = lib.systems.elaborate;
       defaultText = lib.literalMD ''
         - Inherited from the "host" configuration's `pkgs`
         - Or `evalNixvim`'s `system` argument
@@ -169,9 +177,14 @@ in
       example = {
         system = "x86_64-linux";
       };
-      # FIXME: An elaborated platform is not supported,
-      # but an `apply` function is probably still needed.
-      # See https://github.com/NixOS/nixpkgs/pull/376988
+      apply =
+        value:
+        let
+          elaborated = lib.systems.elaborate value;
+        in
+        # If equivalent to `hostPlatform`, make it actually identical so that `==` can be used
+        # See https://github.com/NixOS/nixpkgs/issues/278001
+        if lib.systems.equals elaborated cfg.hostPlatform then cfg.hostPlatform else elaborated;
       defaultText = lib.literalMD ''
         Inherited from the "host" configuration's `pkgs`.
         Or `config.nixpkgs.hostPlatform` when building a standalone nixvim.
@@ -188,7 +201,7 @@ in
     # NOTE: This is a nixvim-specific option; there's no equivalent in nixos
     source = lib.mkOption {
       type = lib.types.path;
-      default = config.flake.inputs.nixpkgs;
+      default = (lib.optionalAttrs options.flake.isDefined config.flake).inputs.nixpkgs or pinned;
       defaultText = lib.literalMD "Nixvim's flake `input.nixpkgs`";
       description = ''
         The path to import Nixpkgs from.
@@ -212,13 +225,9 @@ in
               inherit (cfg) config overlays;
             };
 
-            elaborated = builtins.mapAttrs (_: lib.systems.elaborate) {
-              inherit (cfg) buildPlatform hostPlatform;
-            };
-
             # Configure `localSystem` and `crossSystem` as required
             systemArgs =
-              if lib.systems.equals elaborated.buildPlatform elaborated.hostPlatform then
+              if cfg.buildPlatform == cfg.hostPlatform then
                 {
                   localSystem = cfg.hostPlatform;
                 }
@@ -229,6 +238,16 @@ in
                 };
           in
           import cfg.source (args // systemArgs);
+
+      # Whether `pkgs` was constructed by this module.
+      # This is false when any of nixpkgs.pkgs or _module.args.pkgs is set.
+      constructedByMe =
+        # We set it with default priority and it can not be merged, so if the
+        # pkgs module argument has that priority, it's from us.
+        (lib.modules.mergeAttrDefinitionsWithPrio options._module.args).pkgs.highestPrio
+        == lib.modules.defaultOverridePriority
+        # Although, if nixpkgs.pkgs is set, we did forward it, but we did not construct it.
+        && !opt.pkgs.isDefined;
     in
     {
       # We explicitly set the default override priority, so that we do not need
@@ -237,7 +256,7 @@ in
       # which is somewhat costly for Nixpkgs. With an explicit priority, we only
       # evaluate the wrapper to find out that the priority is lower, and then we
       # don't need to evaluate `finalPkgs`.
-      _module.args.pkgs = lib.mkOverride lib.modules.defaultOverridePriority finalPkgs.__splicedPackages;
+      _module.args.pkgs = lib.mkOverride lib.modules.defaultOverridePriority finalPkgs;
 
       assertions = [
         {
@@ -254,5 +273,20 @@ in
           '';
         }
       ];
+
+      # TODO: consider `nixpkgs.source` always defaulting to `pinned`? That would bypass flake input following.
+      warnings =
+        lib.optional
+          (
+            constructedByMe
+            && opt.source.highestPrio == optionDefaultPrio
+            && versionInfo.nixpkgs_rev != cfg.source.rev or null
+          )
+          ''
+            The `${opt.source}` default value has been affected by your flake input `follows`.
+            Nixvim's inputs pin Nixpkgs to `${versionInfo.nixpkgs_rev}`.${
+              lib.optionalString (cfg.source ? rev) " Actual Nixpkgs is following `${cfg.source.rev}`."
+            }
+            Please remove your `inputs.nixvim.inputs.nixpkgs.follows` or explicitly define `${opt.source}` to suppress this warning.'';
     };
 }

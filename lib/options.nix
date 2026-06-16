@@ -2,12 +2,6 @@
 let
   inherit (lib) types;
 
-  removed = lib.mapAttrs (name: msg: throw "${name} is removed. ${msg}") {
-    # Removed 2024-09-05
-    mkPackageOption = "Use `lib.mkPackageOption` instead.";
-    mkPluginPackageOption = "Use `lib.mkPackageOption` instead.";
-  };
-
   # Render a plugin default string
   pluginDefaultText =
     {
@@ -436,7 +430,7 @@ rec {
       default = throw ''
         Nixvim (${optionName}): No package is known for ${packageName}, to resolve this either:
           - install externally and set this option to `null`
-          - or provide a derviation to install this package
+          - or provide a derivation to install this package
       '';
       defaultText = lib.literalMD "No package, throws when undefined";
     };
@@ -458,4 +452,3 @@ rec {
     else
       mkUnpackagedOption optionName packageName;
 }
-// removed

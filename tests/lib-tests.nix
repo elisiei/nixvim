@@ -3,6 +3,7 @@
 {
   helpers,
   lib,
+  pkgs,
   runCommandLocal,
   writeText,
 }:
@@ -47,6 +48,61 @@ let
   };
 
   drv = writeText "example-derivation" "hello, world!";
+
+  optionalSetupInlinePlugin =
+    { lib, ... }:
+    lib.nixvim.plugins.mkNeovimPlugin {
+      name = "fake";
+      moduleName = "fake";
+      package = [
+        "vimPlugins"
+        "vim-repeat"
+      ];
+      maintainers = [ ];
+      callSetup = "optional";
+
+      settingsOptions = {
+        foo = lib.mkOption {
+          type = lib.types.bool;
+          default = false;
+        };
+      };
+    };
+
+  alwaysSetupInlinePlugin =
+    { lib, ... }:
+    lib.nixvim.plugins.mkNeovimPlugin {
+      name = "fake";
+      moduleName = "fake";
+      package = [
+        "vimPlugins"
+        "vim-repeat"
+      ];
+      maintainers = [ ];
+      callSetup = true;
+
+      settingsOptions = {
+        foo = lib.mkOption {
+          type = lib.types.bool;
+          default = false;
+        };
+      };
+    };
+
+  inlinePluginConfig =
+    plugin: module:
+    (lib.nixvim.modules.evalNixvim {
+      modules = [
+        {
+          _module.args.pkgs = lib.mkForce pkgs;
+        }
+        plugin
+        module
+      ];
+    }).config.content;
+
+  optionalSetupConfig = inlinePluginConfig optionalSetupInlinePlugin;
+  alwaysSetupConfig = inlinePluginConfig alwaysSetupInlinePlugin;
 
   results = lib.runTests {
     testToLuaObject = {
@@ -555,6 +611,77 @@ let
     testNixvimWith_hasExpectedArgs = {
       expr = lib.functionArgs lib.nixvim.modules.testNixvimWith;
       expected = lib.functionArgs lib.nixvim.modules.evalNixvim;
+    };
+
+    testMkNeovimPluginOptionalSetupSkipsImplicitDefaults = {
+      expr = lib.hasInfix "require('fake').setup(" (optionalSetupConfig {
+        plugins.fake.enable = true;
+      });
+      expected = false;
+    };
+
+    testMkNeovimPluginCallSetupOptionForcesOptionalSetup = {
+      expr =
+        let
+          content = optionalSetupConfig {
+            plugins.fake = {
+              enable = true;
+              callSetup = true;
+            };
+          };
+        in
+        lib.hasInfix "require('fake').setup(" content;
+      expected = true;
+    };
+
+    testMkNeovimPluginCallSetupOptionDisablesDefaultSetup = {
+      expr =
+        let
+          content = alwaysSetupConfig {
+            plugins.fake = {
+              enable = true;
+              callSetup = false;
+            };
+          };
+        in
+        lib.hasInfix "require('fake').setup(" content;
+      expected = false;
+    };
+
+    testMkNeovimPluginOptionalSetupRunsForExplicitEmptySettings = {
+      expr =
+        let
+          content = optionalSetupConfig {
+            plugins.fake.enable = true;
+            plugins.fake.settings = { };
+          };
+        in
+        {
+          hasSetup = lib.hasInfix "require('fake').setup(" content;
+          hasDefaults = lib.hasInfix "foo = false" content;
+        };
+      expected = {
+        hasSetup = true;
+        hasDefaults = true;
+      };
+    };
+
+    testMkNeovimPluginOptionalSetupRunsForExplicitSettingsValues = {
+      expr =
+        let
+          content = optionalSetupConfig {
+            plugins.fake.enable = true;
+            plugins.fake.settings.foo = true;
+          };
+        in
+        {
+          hasSetup = lib.hasInfix "require('fake').setup(" content;
+          hasValue = lib.hasInfix "foo = true" content;
+        };
+      expected = {
+        hasSetup = true;
+        hasValue = true;
+      };
     };
   };
 in

@@ -5,6 +5,7 @@ in
 {
   # efmls-configs tools that have no corresponding nixpkgs package
   unpackaged = [
+    "alex" # was removed from nixpkgs as it is unmaintained
     "blade_formatter"
     "cljstyle"
     "cspell"
@@ -61,6 +62,7 @@ in
       "dmd"
       "dprint"
       "eslint"
+      "eslint_d"
       "fish"
       "flawfinder"
       "fnlfmt"
@@ -70,6 +72,7 @@ in
       "golines"
       "golint"
       "hadolint"
+      "htmlhint"
       "isort"
       "joker"
       "jq"
@@ -78,6 +81,7 @@ in
       "nixfmt"
       "php"
       "phpstan"
+      "prettier"
       "prettypst"
       "proselint"
       "protolint"
@@ -95,8 +99,11 @@ in
       "sqlfluff"
       "sqruff"
       "statix"
+      "stylelint"
       "stylua"
       "taplo"
+      "textlint"
+      "typos"
       "typstyle"
       "uncrustify"
       "vale"
@@ -110,13 +117,6 @@ in
         "flake8"
         "mdformat"
         "vulture"
-      ];
-      nodePackages = [
-        "alex"
-        "eslint_d"
-        "prettier"
-        "stylelint"
-        "textlint"
       ];
       phpPackages = [
         "phan"
